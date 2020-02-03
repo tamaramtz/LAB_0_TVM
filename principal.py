@@ -15,9 +15,10 @@ from datos import OA_Ak                             # Importar token para API de
 # -- --------------------------------------------------------- Descargar precios de OANDA -- #
 
 # token de OANDA
-OA_In = "EUR_USD"                  # Instrumento
-OA_Gn = "D"                        # Granularidad de velas
-fini = pd.to_datetime("2019-07-06 00:00:00").tz_localize('GMT')  # Fecha inicial
+
+OA_In = "EUR_USD"                                   # Instrumento
+OA_Gn = "D"                                         # Granularidad de velas
+fini = pd.to_datetime("2018-07-06 00:00:00").tz_localize('GMT')  # Fecha inicial
 ffin = pd.to_datetime("2019-12-06 00:00:00").tz_localize('GMT')  # Fecha final
 
 # Descargar precios masivos
@@ -40,15 +41,56 @@ df_pe['hora'] = [df_pe['TimeStamp'][i].hour for i in range(0, len(df_pe['TimeSta
 # -- 0A.2: Dia de la semana.
 df_pe['dia'] = [df_pe['TimeStamp'][i].weekday() for i in range(0, len(df_pe['TimeStamp']))]
 
-# -- 0A.2: Mes.
-df_pe['mes'] = [df_pe['TimeStamp'][i].month() for i in range(0, len(df_pe['TimeStamp']))]
-
 # -- 0B: Boxplot de amplitud de velas (close - open).
-df_pe['co'] = (df_pe['Close'] - df_pe['Open'])*pip_mult
-
-# -- 0B: Boxplot de amplitud de velas (close - open).
-df_pe['oc'] = (df_pe['Open'] - df_pe['Close'])*pip_mul
+df_pe['co'] = (df_pe['Close'] - df_pe['Open']) * pip_mult
 
 # -- ------------------------------------------------------------ Graficar Boxplot plotly -- #
 vs_grafica2 = vs.g_boxplot_varios(p0_data=df_pe[['co']], p1_norm=False)
 vs_grafica2.show()
+
+# -- 01 Mes en el que ocurrió la vela.
+df_pe['mes'] = [df_pe['TimeStamp'][i].month for i in range(0, len(df_pe['TimeStamp']))]
+
+# -- 02 Sesion de la vela.
+for i in range(0, len(df_pe['hora'])):
+    if df_pe['hora'][i] in [22, 23, 0, 1, 2, 3, 4, 5, 6, 7]:
+        df_pe['sesion'] = 'asia'
+    elif df_pe['hora'][i] in [8]:
+        df_pe['sesion'] = 'asia_europa'
+    elif df_pe['hora'][i] in [9, 10, 11, 12]:
+        df_pe['sesion'] = 'europa'
+    elif df_pe['hora'][i] in [13, 14, 15, 16]:
+        df_pe['sesion'] = 'europa_america'
+    elif df_pe['hora'][i] in [17, 18, 19, 20, 21]:
+        df_pe['sesion'] = 'america'
+
+# -- 03 Amplitud de vela (en pips).
+df_pe['oc'] = (df_pe['Open'] - df_pe['Close'])*pip_mult
+
+# -- 04 Amplitud de los extremos (en pips).
+df_pe['hl'] = (df_pe['High'] - df_pe['Low'])*pip_mult
+
+# -- 05 Sentido de la vela (alcista o bajista)
+df_pe['sentido'] = ["alcista" if df_pe['Close'][i] >= df_pe['Open'][i] else "bajista"
+                            for i in range(0, len(df_pe['Close']))]
+
+# -- 06 Conteo de velas consecutivas alcistas/bajistas.
+df_pe.loc[0,'conteo_c'] = 0
+x=0
+for i in range(1, len(df_pe['sentido'])):
+    if df_pe['sentido'][i] == df_pe['sentido'][i-1]:
+        x += 1
+        df_pe.loc[i,'conteo_c'] = x
+    else:
+        x = 0
+        df_pe.loc[i,'conteo_c'] = x
+
+# -- 07 Ventanas móviles de volatilidad.
+df_pe['volatilidad_5'] = df_pe.iloc[:, 11].rolling(window=5).mean() #volalitilidad con 5
+df_pe['volatilidad_25'] = df_pe.iloc[:, 11].rolling(window=25).mean() #volalitilidad con 25
+df_pe['volatilidad_50'] = df_pe.iloc[:, 11].rolling(window=50).mean() #volalitilidad con 50
+
+
+
+
+
